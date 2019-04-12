@@ -3,6 +3,8 @@ Data Priming Network for Automatic Check-Out
 
 Introduction
 -----------------
+This paper was submmitted to ACM MM 2019.
+
 This repository implements DPNet ([Data Priming Network for Automatic Check-Out](/)) using PyTorch 1.0.1 . This implementation is heavily influenced by the project [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark).
 
 We propose a new data priming method
