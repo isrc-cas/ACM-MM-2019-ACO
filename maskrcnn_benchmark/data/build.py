@@ -4,9 +4,6 @@ import copy
 import logging
 
 import torch.utils.data
-
-from maskrcnn_benchmark.data.datasets.rpc import TargetDomainDataset
-from maskrcnn_benchmark.structures.image_list import to_image_list
 from maskrcnn_benchmark.utils.comm import get_world_size
 from maskrcnn_benchmark.utils.imports import import_file
 
@@ -86,7 +83,7 @@ def _compute_aspect_ratios(dataset):
 
 
 def make_batch_data_sampler(
-        dataset, sampler, aspect_grouping, images_per_batch, num_iters=None, start_iter=0
+    dataset, sampler, aspect_grouping, images_per_batch, num_iters=None, start_iter=0
 ):
     if aspect_grouping:
         if not isinstance(aspect_grouping, (list, tuple)):
@@ -112,7 +109,7 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
     if is_train:
         images_per_batch = cfg.SOLVER.IMS_PER_BATCH
         assert (
-                images_per_batch % num_gpus == 0
+            images_per_batch % num_gpus == 0
         ), "SOLVER.IMS_PER_BATCH ({}) must be divisible by the number "
         "of GPUs ({}) used.".format(images_per_batch, num_gpus)
         images_per_gpu = images_per_batch // num_gpus
@@ -121,7 +118,7 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
     else:
         images_per_batch = cfg.TEST.IMS_PER_BATCH
         assert (
-                images_per_batch % num_gpus == 0
+            images_per_batch % num_gpus == 0
         ), "TEST.IMS_PER_BATCH ({}) must be divisible by the number "
         "of GPUs ({}) used.".format(images_per_batch, num_gpus)
         images_per_gpu = images_per_batch // num_gpus
@@ -174,26 +171,5 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, start_iter=0):
     if is_train:
         # during training, a single (possibly concatenated) data_loader is returned
         assert len(data_loaders) == 1
-
-        # ------------------target domain loader------------------
-        target_domain_dataset = TargetDomainDataset(transforms)
-        sampler = make_data_sampler(target_domain_dataset, shuffle, is_distributed)
-        batch_sampler = make_batch_data_sampler(
-            target_domain_dataset, sampler, aspect_grouping, images_per_gpu, num_iters, start_iter
-        )
-
-        num_workers = cfg.DATALOADER.NUM_WORKERS
-
-        def target_domain_collator(batch):
-            return to_image_list(batch, cfg.DATALOADER.SIZE_DIVISIBILITY)
-
-        target_domain_data_loader = torch.utils.data.DataLoader(
-            target_domain_dataset,
-            num_workers=num_workers,
-            batch_sampler=batch_sampler,
-            collate_fn=target_domain_collator,
-        )
-        # ------------------target domain loader------------------
-
-        return data_loaders[0], target_domain_data_loader
+        return data_loaders[0]
     return data_loaders

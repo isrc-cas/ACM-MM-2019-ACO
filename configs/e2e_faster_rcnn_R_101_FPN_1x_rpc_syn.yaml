@@ -22,7 +22,7 @@ MODEL:
     PREDICTOR: "FPNPredictor"
     NUM_CLASSES: 201
 DATASETS:
-  TRAIN: ("rpc_2019_train_render",)
+  TRAIN: ("rpc_2019_train_syn",)
   TEST: ("rpc_2019_val",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32
@@ -35,4 +35,4 @@ SOLVER:
 TEST:
   IMS_PER_BATCH: 4
 
-OUTPUT_DIR: 'outputs_rpc_2019_train_render'
+OUTPUT_DIR: 'outputs_rpc_2019_train_syn'

@@ -13,7 +13,7 @@ def make_optimizer(cfg, model):
         weight_decay = cfg.SOLVER.WEIGHT_DECAY
         if 'density_head' in key:
             lr = lr * 1e-5 * 4
-            weight_decay = 5 * 1e-4
+            weight_decay = 5e-4
         elif "bias" in key:
             lr = cfg.SOLVER.BASE_LR * cfg.SOLVER.BIAS_LR_FACTOR
             weight_decay = cfg.SOLVER.WEIGHT_DECAY_BIAS

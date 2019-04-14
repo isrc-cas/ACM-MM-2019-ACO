@@ -3,11 +3,9 @@ import json
 import os
 import random
 import scipy
-import sys
 import time
 from argparse import ArgumentParser
 from collections import defaultdict
-import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 from PIL import Image
@@ -49,11 +47,13 @@ def buy_strategic(counter):
 
 def check_iou(annotations, box, threshold=0.5):
     """
-    :param annotations:
-    :param box: (x, y, w, h)
-    :param threshold:
-    :return:
+    Args:
+        annotations:
+        box: (x, y, w, h)
+        threshold:
+    Returns: bool
     """
+
     cx1, cy1, cw, ch = box
     cx2, cy2 = cx1 + cw, cy1 + ch
     carea = cw * ch
@@ -80,18 +80,7 @@ def sample_select_object_index(category, paths, ratio_annotations, threshold=0.4
     return path
 
 
-def generated_position(width, height, w, h, pad=0, dis=3):
-    # a = np.random.normal()
-    # a = (np.clip(a, -dis, dis) + dis) / (dis * 2)
-    # x = max(a * (width - w - pad), pad)
-    #
-    # b = np.random.normal()
-    # b = (np.clip(b, -dis, dis) + dis) / (dis * 2)
-    # y = max(b * (height - h - pad), pad)
-    #
-    # x = int(round(x))
-    # y = int(round(y))
-
+def generated_position(width, height, w, h, pad=0):
     x = random.randint(pad, width - w - pad)
     y = random.randint(pad, height - h - pad)
     return x, y
@@ -283,12 +272,11 @@ if __name__ == '__main__':
     parser.add_argument('--local_rank', type=int, default=0)
     args = parser.parse_args()
 
-    counter = {
-        'easy_mode': 0,
-        'medium_mode': 0,
-        'hard_mode': 0
-    }
-
+    # counter = {
+    #     'easy_mode': 0,
+    #     'medium_mode': 0,
+    #     'hard_mode': 0
+    # }
     # strategics = []
     # for image_id in tqdm(range(GENERATED_NUM)):
     #     num_per_category = buy_strategic(counter)

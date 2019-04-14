@@ -13,162 +13,19 @@ import torch
 import torch.utils.data
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
-from maskrcnn_benchmark.structures.segmentation_mask import BinaryMask
+from maskrcnn_benchmark.structures.segmentation_mask import DensityMap
 
 
-class RPCDataset(torch.utils.data.Dataset):
-
-    def __init__(self, images_dir, ann_file, transforms=None, scale=1.0, ext='.jpg'):
+# --------------------------------------------
+# ----------------Test dataset----------------
+# --------------------------------------------
+class RPCTestDataset(torch.utils.data.Dataset):
+    def __init__(self, images_dir, ann_file, transforms=None):
+        self.transforms = transforms
         self.images_dir = images_dir
         self.ann_file = ann_file
-        self.transforms = transforms
-        self.scale = scale
-        self.ext = ext
 
         with open(self.ann_file) as fid:
-            self.annotations = json.load(fid)
-
-    def __getitem__(self, index):
-        ann = self.annotations[index]
-        image_id = ann['image_id']
-        img_path = os.path.join(self.images_dir, os.path.splitext(image_id)[0] + self.ext)
-        img = Image.open(img_path).convert("RGB")
-        width, height = img.size[0], img.size[1]
-        boxes = []
-        labels = []
-        objects = ann['objects']
-        for item in objects:
-            category = item['category_id']
-            x, y, w, h = item['bbox']
-            boxes.append([x * self.scale, y * self.scale, (x + w) * self.scale, (y + h) * self.scale])
-            labels.append(category)
-
-        target = BoxList(torch.tensor(boxes, dtype=torch.float32), (width, height), mode="xyxy")
-        target.add_field('labels', torch.tensor(labels))
-        target = target.clip_to_image(remove_empty=True)
-
-        if self.transforms is not None:
-            img, target = self.transforms(img, target)
-
-        return img, target, index
-
-    def __len__(self):
-        return len(self.annotations)
-
-    def get_img_info(self, index):
-        return {"height": 1815, "width": 1815}
-
-
-class RPCRenderedDataset(RPCDataset):
-
-    def __init__(self, images_dir, ann_file, transforms=None):
-        super().__init__(images_dir, ann_file, transforms, scale=800.0 / 1815.0, ext='.png')
-
-    def get_img_info(self, index):
-        return {"height": 800, "width": 800}
-
-
-class RPCTrainWithDensityDataset(RPCDataset):
-
-    def __getitem__(self, index):
-        ann = self.annotations[index]
-        image_id = ann['image_id']
-        img_path = os.path.join(self.images_dir, os.path.splitext(image_id)[0] + '.jpg')
-        img = Image.open(img_path).convert("RGB")
-        width, height = img.size[0], img.size[1]
-        boxes = []
-        labels = []
-        objects = ann['objects']
-        for item in objects:
-            category = item['category_id']
-            x, y, w, h = item['bbox']
-            boxes.append([x * self.scale, y * self.scale, (x + w) * self.scale, (y + h) * self.scale])
-            labels.append(category)
-
-        target = BoxList(torch.tensor(boxes, dtype=torch.float32), (width, height), mode="xyxy")
-        target.add_field('labels', torch.tensor(labels))
-
-        density = np.load(os.path.join('/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold', 'density_maps', os.path.splitext(image_id)[0] + '.npy'))
-        assert density.shape[0] == 200 and density.shape[1] == 200
-
-        resize_scale = 2
-        resize_density = cv2.resize(density,
-                                    dsize=(density.shape[1] // resize_scale, density.shape[0] // resize_scale),
-                                    interpolation=cv2.INTER_CUBIC) * (resize_scale ** 2)
-        assert resize_density.shape[0] == 100 and resize_density.shape[1] == 100
-
-        target.add_field('density_map', BinaryMask(resize_density))
-        target = target.clip_to_image(remove_empty=True)
-
-        if self.transforms is not None:
-            img, target = self.transforms(img, target)
-
-        return img, target, index
-
-
-class RPCRenderedWithDensityDataset(RPCRenderedDataset):
-
-    def __getitem__(self, index):
-        ann = self.annotations[index]
-        image_id = ann['image_id']
-        img_path = os.path.join(self.images_dir, os.path.splitext(image_id)[0] + '.png')
-        img = Image.open(img_path).convert("RGB")
-        width, height = img.size[0], img.size[1]
-        boxes = []
-        labels = []
-        objects = ann['objects']
-        for item in objects:
-            category = item['category_id']
-            x, y, w, h = item['bbox']
-            boxes.append([x * self.scale, y * self.scale, (x + w) * self.scale, (y + h) * self.scale])
-            labels.append(category)
-
-        target = BoxList(torch.tensor(boxes, dtype=torch.float32), (width, height), mode="xyxy")
-        target.add_field('labels', torch.tensor(labels))
-
-        density = np.load(os.path.join('/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold', 'density_maps', os.path.splitext(image_id)[0] + '.npy'))
-        assert density.shape[0] == 200 and density.shape[1] == 200
-        # multi scale density maps
-        # density_maps = [density]
-        # for i in range(3):
-        #     i = i + 1
-        #     resize_scale = 2 ** i
-        #     resize_density = cv2.resize(density, (density.shape[1] // resize_scale, density.shape[0] // resize_scale), interpolation=cv2.INTER_CUBIC) * (resize_scale ** 2)
-        #     density_maps.append(resize_density)
-        # for i in range(4):
-        #     print(density_maps[i].shape)
-        #
-        # print(len(objects))
-        # for i in range(4):
-        #     print(density_maps[i].sum())
-        # print(density.sum())
-        # quit()
-        resize_scale = 2
-        resize_density = cv2.resize(density,
-                                    dsize=(density.shape[1] // resize_scale, density.shape[0] // resize_scale),
-                                    interpolation=cv2.INTER_CUBIC) * (resize_scale ** 2)
-        assert resize_density.shape[0] == 100 and resize_density.shape[1] == 100
-        target.add_field('density_map', BinaryMask(resize_density))
-
-        target = target.clip_to_image(remove_empty=True)
-
-        if self.transforms is not None:
-            img, target = self.transforms(img, target)
-
-        return img, target, index
-
-
-class RPCTestDataset(torch.utils.data.Dataset):
-
-    def __init__(self, data_dir, filename='instances_test2019.json',
-                 images_dir='test2019', transforms=None):
-        self.root = data_dir
-        self.transforms = transforms
-        self.images_dir = images_dir
-
-        self.annopath = os.path.join(self.root, filename)
-
-        with open(self.annopath) as fid:
             data = json.load(fid)
 
         annotations = defaultdict(list)
@@ -185,7 +42,7 @@ class RPCTestDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         image_id = self.images[index]['id']
-        img_path = os.path.join(self.root, self.images_dir, self.images[index]['file_name'])
+        img_path = os.path.join(self.images_dir, self.images[index]['file_name'])
         img = Image.open(img_path).convert("RGB")
         width, height = img.size[0], img.size[1]
         boxes = []
@@ -214,6 +71,76 @@ class RPCTestDataset(torch.utils.data.Dataset):
     def get_img_info(self, index):
         image = self.images[index]
         return {"height": image['height'], "width": image['width'], "id": image['id'], 'file_name': image['file_name']}
+
+
+# --------------------------------------------
+# ----------------Train dataset---------------
+# --------------------------------------------
+class RPCDataset(torch.utils.data.Dataset):
+    def __init__(self,
+                 images_dir,
+                 ann_file,
+                 density_maps_dir=None,
+                 rendered=False,
+                 transforms=None):
+        self.images_dir = images_dir
+        self.ann_file = ann_file
+        self.density_maps_dir = density_maps_dir
+        self.rendered = rendered
+        self.transforms = transforms
+
+        self.scale = 1.0
+        self.ext = '.jpg'
+        if self.rendered:  # Rendered image is 800*800 and format is png
+            self.scale = 800.0 / 1815.0
+            self.ext = '.png'
+
+        with open(self.ann_file) as fid:
+            self.annotations = json.load(fid)
+
+    def __getitem__(self, index):
+        ann = self.annotations[index]
+        image_id = ann['image_id']
+        image_name = os.path.splitext(image_id)[0]
+        img_path = os.path.join(self.images_dir, image_name + self.ext)
+        img = Image.open(img_path).convert("RGB")
+        width, height = img.size[0], img.size[1]
+        boxes = []
+        labels = []
+        objects = ann['objects']
+        for item in objects:
+            category = item['category_id']
+            x, y, w, h = item['bbox']
+            boxes.append([x * self.scale, y * self.scale, (x + w) * self.scale, (y + h) * self.scale])
+            labels.append(category)
+
+        target = BoxList(torch.tensor(boxes, dtype=torch.float32), (width, height), mode="xyxy")
+        target.add_field('labels', torch.tensor(labels))
+
+        if self.density_maps_dir:
+            density_map = np.load(os.path.join(self.density_maps_dir, image_name + '.npy'))
+            assert density_map.shape[0] == 200 and density_map.shape[1] == 200
+            # scale to 100 * 100
+            resize_scale = 2
+            resize_density_map = cv2.resize(density_map,
+                                            dsize=(density_map.shape[1] // resize_scale, density_map.shape[0] // resize_scale),
+                                            interpolation=cv2.INTER_CUBIC) * (resize_scale ** 2)
+
+            assert resize_density_map.shape[0] == 100 and resize_density_map.shape[1] == 100
+
+            target.add_field('density_map', DensityMap(resize_density_map))
+
+        target = target.clip_to_image(remove_empty=True)
+        if self.transforms is not None:
+            img, target = self.transforms(img, target)
+
+        return img, target, index
+
+    def __len__(self):
+        return len(self.annotations)
+
+    def get_img_info(self, index):
+        return {"height": 1815, "width": 1815}
 
 
 class RPCPseudoDataset(torch.utils.data.Dataset):
@@ -281,7 +208,7 @@ class RPCPseudoDataset(torch.utils.data.Dataset):
                 gt[round(cy * scale_h), round(cx * scale_w)] = 1
             density = self.gaussian_filter_density(gt)
             assert density.shape[0] == 100 and density.shape[1] == 100
-            target.add_field('density_map', BinaryMask(density))
+            target.add_field('density_map', DensityMap(density))
 
         if self.transforms is not None:
             img, target = self.transforms(img, target)
@@ -294,27 +221,3 @@ class RPCPseudoDataset(torch.utils.data.Dataset):
     def get_img_info(self, index):
         ann = self.annotations[index]
         return {"height": ann['height'], "width": ann['width'], "id": ann['id'], 'file_name': ann['file_name']}
-
-
-class TargetDomainDataset(torch.utils.data.Dataset):
-    def __init__(self, transforms):
-        self.folder = '/data7/lufficc/rpc/synthesize_v9_bag_like_only_back_front/'
-        self.paths = glob.glob(os.path.join(self.folder, '*.jpg'))
-        random.shuffle(self.paths)
-        self.transforms = transforms
-        self.log = True
-
-    def __getitem__(self, index):
-        path = self.paths[index]
-        if self.log:
-            self.log = False
-            print(path)
-        img = Image.open(path).convert('RGB')
-        target = None
-        if self.transforms:
-            img, _ = self.transforms(img, target)
-
-        return img
-
-    def __len__(self):
-        return len(self.paths)

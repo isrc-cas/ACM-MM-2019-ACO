@@ -6,10 +6,11 @@ import time
 
 import torch
 import torch.distributed as dist
-import tensorboardX
-from maskrcnn_benchmark.utils.comm import get_world_size, get_rank
+
+from maskrcnn_benchmark.utils.comm import get_world_size
 from maskrcnn_benchmark.utils.metric_logger import MetricLogger
-from tools.tester import run_test_when_training
+from maskrcnn_benchmark.utils.comm import get_rank
+from tools.test_net import do_test
 
 
 def reduce_loss_dict(loss_dict):
@@ -47,8 +48,7 @@ def do_train(
         device,
         checkpoint_period,
         arguments,
-        distributed,
-        target_domain_data_loader
+        distributed
 ):
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
@@ -61,9 +61,9 @@ def do_train(
 
     summary_writer = None
     if get_rank() == 0:
+        import tensorboardX
         summary_writer = tensorboardX.SummaryWriter(os.path.join(checkpointer.save_dir, 'tf_logs'))
 
-    # target_data_loader = iter(target_domain_data_loader)
     for iteration, (images, targets, _) in enumerate(data_loader, start_iter):
         data_time = time.time() - end
         iteration = iteration + 1
@@ -74,16 +74,12 @@ def do_train(
         images = images.to(device)
         targets = [target.to(device) for target in targets]
 
-        # target_domain_images = next(target_data_loader)
-        # target_domain_images = target_domain_images.to(device)
-
-        loss_dict = model(images, None, targets, iteration)
+        loss_dict = model(images, targets)
 
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = reduce_loss_dict(loss_dict)
-
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
         meters.update(loss=losses_reduced, **loss_dict_reduced)
 
@@ -103,8 +99,8 @@ def do_train(
                 summary_writer.add_scalar('loss/total_loss', losses_reduced, global_step=iteration)
                 for name, value in loss_dict_reduced.items():
                     summary_writer.add_scalar('loss/%s' % name, value, global_step=iteration)
-
                 summary_writer.add_scalar('lr', optimizer.param_groups[0]["lr"], global_step=iteration)
+
             logger.info(
                 meters.delimiter.join(
                     [
@@ -125,7 +121,7 @@ def do_train(
         if iteration % checkpoint_period == 0:
             checkpointer.save("model_{:07d}".format(iteration), **arguments)
             if iteration != max_iter:
-                run_test_when_training(cfg, model, distributed)
+                do_test(cfg, model, distributed)
                 model.train()  # restore train state
         if iteration == max_iter:
             checkpointer.save("model_final", **arguments)

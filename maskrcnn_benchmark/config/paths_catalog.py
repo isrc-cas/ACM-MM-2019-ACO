@@ -104,36 +104,43 @@ class DatasetCatalog(object):
             "img_dir": "cityscapes/images",
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
         },
-        "rpc_2019_train_rendered": {
-            "root": "/data7/lufficc/rpc/synthesize_v10_no_filter_cyclegan",
-            "ann_file": '/data7/lufficc/rpc/synthesize_v10_no_filter.json',
-        },
-        "rpc_2019_train_with_density_rendered": {
-            "root": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold_cyclegan",
-            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json',
-        },
-        "rpc_2019_train": {
-            "root": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold",
-            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json'
-        },
-        "rpc_2019_train_density": {
-            "root": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold",
-            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json'
-        },
+        # -------------------------------------------------
+        # -----------------RPC eval dataset----------------
+        # -------------------------------------------------
         "rpc_2019_test": {
-            "root": "/data7/lufficc/rpc/",
-            "filename": 'instances_test2019.json',
-            "images_dir": 'test2019'
+            "images_dir": "/data7/lufficc/rpc/test2019/",
+            "ann_file": '/data7/lufficc/rpc/instances_test2019.json',
         },
         "rpc_2019_val": {
-            "root": "/data7/lufficc/rpc/",
-            "filename": 'instances_val2019.json',
-            "images_dir": 'val2019'
+            "images_dir": "/data7/lufficc/rpc/val2019/",
+            "ann_file": '/data7/lufficc/rpc/instances_val2019.json',
         },
-        "rpc_2019_pseudo": {
-            "root": "/data7/lufficc/rpc/",
-            "filename": 'pseudo_labeling.json',
-            "images_dir": 'test2019'
+        # -------------------------------------------------
+        # -----------------RPC train dataset---------------
+        # -------------------------------------------------
+        "rpc_2019_train_syn": {
+            "images_dir": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold",
+            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json',
+            'density_maps_dir': None,
+            'rendered': False,
+        },
+        "rpc_2019_train_render": {
+            "images_dir": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold_cyclegan",
+            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json',
+            'density_maps_dir': None,
+            'rendered': True,
+        },
+        "rpc_2019_train_render_density_map": {
+            "images_dir": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold_cyclegan",
+            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json',
+            'density_maps_dir': '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold/density_maps',
+            'rendered': True,
+        },
+        "rpc_2019_train_syn_density_map": {
+            "images_dir": "/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold",
+            "ann_file": '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold.json',
+            'density_maps_dir': '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold/density_maps',
+            'rendered': False,
         },
     }
 
@@ -161,66 +168,18 @@ class DatasetCatalog(object):
                 factory="PascalVOCDataset",
                 args=args,
             )
-        elif name in ('rpc_2019_train',):
+        elif "rpc_2019_train" in name:
             attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                images_dir=attrs['root'],
-                ann_file=attrs['ann_file']
-            )
+            args = dict(attrs)
             return dict(
                 factory="RPCDataset",
                 args=args,
             )
-        elif name in ('rpc_2019_train_density',):
-            attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                images_dir=attrs['root'],
-                ann_file=attrs['ann_file']
-            )
-            return dict(
-                factory="RPCTrainWithDensityDataset",
-                args=args,
-            )
-        elif name in ('rpc_2019_train_rendered',):
-            attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                images_dir=attrs['root'],
-                ann_file=attrs['ann_file']
-            )
-            return dict(
-                factory="RPCRenderedDataset",
-                args=args,
-            )
-        elif name in ('rpc_2019_train_with_density_rendered',):
-            attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                images_dir=attrs['root'],
-                ann_file=attrs['ann_file']
-            )
-            return dict(
-                factory="RPCRenderedWithDensityDataset",
-                args=args,
-            )
         elif name in ('rpc_2019_test', 'rpc_2019_val'):
             attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                data_dir=attrs["root"],
-                filename=attrs['filename'],
-                images_dir=attrs['images_dir']
-            )
+            args = dict(attrs)
             return dict(
                 factory="RPCTestDataset",
-                args=args,
-            )
-        elif name in ('rpc_2019_pseudo',):
-            attrs = DatasetCatalog.DATASETS[name]
-            args = dict(
-                data_dir=attrs["root"],
-                filename=attrs['filename'],
-                images_dir=attrs['images_dir']
-            )
-            return dict(
-                factory="RPCPseudoDataset",
                 args=args,
             )
         raise RuntimeError("Dataset not available: {}".format(name))

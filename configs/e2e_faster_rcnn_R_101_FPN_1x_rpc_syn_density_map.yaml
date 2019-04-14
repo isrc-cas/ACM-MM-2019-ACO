@@ -21,12 +21,12 @@ MODEL:
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
     NUM_CLASSES: 201
+  DENSITY_ON: True
 DATASETS:
-  TRAIN: ("rpc_2019_train_with_density_rendered",)
+  TRAIN: ("rpc_2019_train_syn_density_map",)
   TEST: ("rpc_2019_val",)
 DATALOADER:
   SIZE_DIVISIBILITY: 32
-  ASPECT_RATIO_GROUPING: False
 SOLVER:
   BASE_LR: 0.01
   WEIGHT_DECAY: 0.0001
@@ -36,4 +36,4 @@ SOLVER:
 TEST:
   IMS_PER_BATCH: 4
 
-OUTPUT_DIR: 'outputs_v9_bag_like_only_back_front'
+OUTPUT_DIR: 'outputs_rpc_2019_train_syn_density_map'

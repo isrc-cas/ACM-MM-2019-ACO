@@ -75,7 +75,6 @@ class Checkpointer(object):
         return os.path.exists(save_file)
 
     def get_checkpoint_file(self):
-        # return '/data7/lufficc/projects/rpc-detector/outputs_v9_bag_like_only_back_front_cyclegan/model_0145000.pth'
         save_file = os.path.join(self.save_dir, "last_checkpoint")
         try:
             with open(save_file, "r") as f:

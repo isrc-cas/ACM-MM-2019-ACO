@@ -48,16 +48,16 @@ def train(cfg, local_rank, distributed):
 
     save_to_disk = get_rank() == 0
     checkpointer = DetectronCheckpointer(
-        cfg, model, None, None, output_dir, save_to_disk
+        cfg, model, optimizer, scheduler, output_dir, save_to_disk
     )
     extra_checkpoint_data = checkpointer.load(cfg.MODEL.WEIGHT)
-    # arguments.update(extra_checkpoint_data)
+    arguments.update(extra_checkpoint_data)
 
-    data_loader, target_domain_data_loader = make_data_loader(
+    data_loader = make_data_loader(
         cfg,
         is_train=True,
         is_distributed=distributed,
-        start_iter=0,
+        start_iter=arguments["iteration"],
     )
 
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
@@ -73,7 +73,6 @@ def train(cfg, local_rank, distributed):
         checkpoint_period,
         arguments,
         distributed,
-        target_domain_data_loader
     )
 
     return model
@@ -103,6 +102,7 @@ def run_test(cfg, model, distributed):
             dataset_name=dataset_name,
             iou_types=iou_types,
             box_only=False if cfg.MODEL.RETINANET_ON else cfg.MODEL.RPN_ONLY,
+            generate_pseudo_labels=cfg.TEST.GENERATE_PSEUDO_LABELS,
             device=cfg.MODEL.DEVICE,
             expected_results=cfg.TEST.EXPECTED_RESULTS,
             expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,

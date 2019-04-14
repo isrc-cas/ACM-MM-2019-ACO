@@ -1,8 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-import cv2
-
 import numpy as np
 import torch
+
 import pycocotools.mask as mask_utils
 
 # transpose
@@ -27,6 +26,7 @@ class Mask(object):
             raise NotImplementedError(
                 "Only FLIP_LEFT_RIGHT and FLIP_TOP_BOTTOM implemented"
             )
+
         width, height = self.size
         if method == FLIP_LEFT_RIGHT:
             dim = width
@@ -215,64 +215,43 @@ class SegmentationMask(object):
         return s
 
 
-class BinaryMask(object):
+class DensityMap(object):
     """
     This class is unfinished and not meant for use yet
     It is supposed to contain the mask for an object as
     a 2d tensor
     """
 
-    def __init__(self, masks):
+    def __init__(self, density_map):
         # height, width
-        self.masks = masks
+        self.density_map = density_map
 
     def transpose(self, method):
-        if method not in (FLIP_LEFT_RIGHT,):
+        assert isinstance(self.density_map, np.ndarray)
+        if method not in (FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM):
             raise NotImplementedError(
                 "Only FLIP_LEFT_RIGHT and FLIP_TOP_BOTTOM implemented"
             )
         if method == FLIP_LEFT_RIGHT:
-            if isinstance(self.masks, list):
-                masks = []
-                for mask in self.masks:
-                    masks.append(np.fliplr(mask))
-                return BinaryMask(masks)
-            return BinaryMask(np.fliplr(self.masks))
+            return DensityMap(np.fliplr(self.density_map))
         elif method == FLIP_TOP_BOTTOM:
-            if isinstance(self.masks, list):
-                masks = []
-                for mask in self.masks:
-                    masks.append(np.fliplr(mask))
-                return BinaryMask(masks)
-            return BinaryMask(np.flipud(self.masks))
+            return DensityMap(np.flipud(self.density_map))
 
     def crop(self, box):
-        raise NotImplementedError(
-            "crop not implemented"
-        )
-        # cropped_masks = self.masks[box[1]: box[3], box[0]: box[2]]
-        # return BinaryMask(cropped_masks)
+        cropped_density_map = self.density_map[box[1]: box[3], box[0]: box[2]]
+        return DensityMap(cropped_density_map)
 
     def to(self, *args, **kwargs):
-        if isinstance(self.masks, list):
-            masks = []
-            for mask in self.masks:
-                mask = torch.from_numpy(mask)
-                mask = mask.to(*args, **kwargs)
-                masks.append(mask)
-            return BinaryMask(masks)
-        masks = torch.from_numpy(self.masks)
-        masks = masks.to(*args, **kwargs)
-        return BinaryMask(masks)
-
-    def __iter__(self):
-        raise NotImplementedError(
-            "crop not implemented"
-        )
+        density_map = self.density_map
+        if isinstance(self.density_map, np.ndarray):
+            density_map = torch.from_numpy(density_map)
+        density_map = density_map.to(*args, **kwargs)
+        return DensityMap(density_map)
 
     def __getitem__(self, item):
+        # density map not support indexing
         return self
 
     def resize(self, size, *args, **kwargs):
-        # masks = cv2.resize(self.masks, dsize=size)
+        # density map doesn't need resize
         return self

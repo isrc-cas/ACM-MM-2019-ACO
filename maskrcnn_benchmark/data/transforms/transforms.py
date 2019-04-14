@@ -57,8 +57,7 @@ class Resize(object):
     def __call__(self, image, target):
         size = self.get_size(image.size)
         image = F.resize(image, size)
-        if target is not None:
-            target = target.resize(image.size)
+        target = target.resize(image.size)
         return image, target
 
 
@@ -69,8 +68,7 @@ class RandomHorizontalFlip(object):
     def __call__(self, image, target):
         if random.random() < self.prob:
             image = F.hflip(image)
-            if target is not None:
-                target = target.transpose(0)
+            target = target.transpose(0)
         return image, target
 
 
