@@ -142,6 +142,10 @@ class DatasetCatalog(object):
             'density_maps_dir': '/data7/lufficc/rpc/synthesize_v10_masks_density_map_0_45_threshold/density_maps',
             'rendered': False,
         },
+        "rpc_2019_pseudo": {
+            "images_dir": "/data7/lufficc/rpc/test2019/",
+            "ann_file": '/data7/lufficc/rpc/pseudo_labeling.json',
+        },
     }
 
     @staticmethod
@@ -180,6 +184,13 @@ class DatasetCatalog(object):
             args = dict(attrs)
             return dict(
                 factory="RPCTestDataset",
+                args=args,
+            )
+        elif name in ('rpc_2019_pseudo', ):
+            attrs = DatasetCatalog.DATASETS[name]
+            args = dict(attrs)
+            return dict(
+                factory="RPCPseudoDataset",
                 args=args,
             )
         raise RuntimeError("Dataset not available: {}".format(name))

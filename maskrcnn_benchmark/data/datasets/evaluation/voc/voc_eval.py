@@ -4,6 +4,8 @@ from __future__ import division
 
 import os
 from collections import defaultdict
+from datetime import datetime
+
 import numpy as np
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
@@ -16,8 +18,6 @@ def do_voc_evaluation(dataset, predictions, output_folder, logger):
     gt_boxlists = []
     for image_id, prediction in enumerate(predictions):
         img_info = dataset.get_img_info(image_id)
-        if len(prediction) == 0:
-            continue
         image_width = img_info["width"]
         image_height = img_info["height"]
         prediction = prediction.resize((image_width, image_height))
@@ -32,17 +32,22 @@ def do_voc_evaluation(dataset, predictions, output_folder, logger):
         use_07_metric=True,
     )
     result_str = "mAP: {:.4f}\n".format(result["map"])
+    metrics = {'mAP': result["map"]}
     for i, ap in enumerate(result["ap"]):
         if i == 0:  # skip background
             continue
+        metrics[dataset.map_class_id_to_class_name(i)] = ap
         result_str += "{:<16}: {:.4f}\n".format(
             dataset.map_class_id_to_class_name(i), ap
         )
     logger.info(result_str)
     if output_folder:
-        with open(os.path.join(output_folder, "result.txt"), "w") as fid:
+        filename = "result_{}.txt".format(datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        with open(os.path.join(output_folder, filename), "w") as fid:
             fid.write(result_str)
-    return result
+
+    eval_result = dict(metrics=metrics)
+    return eval_result
 
 
 def eval_detection_voc(pred_boxlists, gt_boxlists, iou_thresh=0.5, use_07_metric=False):

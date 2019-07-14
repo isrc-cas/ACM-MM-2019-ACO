@@ -1,4 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+import collections
 import datetime
 import logging
 import os
@@ -36,6 +37,16 @@ def reduce_loss_dict(loss_dict):
             all_losses /= world_size
         reduced_losses = {k: v for k, v in zip(loss_names, all_losses)}
     return reduced_losses
+
+
+def write_metric(eval_result, prefix, summary_writer, global_step):
+    for key in eval_result:
+        value = eval_result[key]
+        tag = '{}/{}'.format(prefix, key)
+        if isinstance(value, collections.Mapping):
+            write_metric(value, tag, summary_writer, global_step)
+        else:
+            summary_writer.add_scalar(tag, value, global_step=global_step)
 
 
 def do_train(
@@ -121,7 +132,10 @@ def do_train(
         if iteration % checkpoint_period == 0:
             checkpointer.save("model_{:07d}".format(iteration), **arguments)
             if iteration != max_iter:
-                do_test(cfg, model, distributed)
+                eval_results = do_test(cfg, model, distributed, iteration=iteration)
+                if get_rank() == 0 and summary_writer:  # only on main thread results are returned.
+                    for eval_result, dataset in zip(eval_results, cfg.DATASETS.TEST):
+                        write_metric(eval_result['metrics'], 'metrics/' + dataset, summary_writer, iteration)
                 model.train()  # restore train state
         if iteration == max_iter:
             checkpointer.save("model_final", **arguments)

@@ -2,7 +2,7 @@
 
 Introduction
 -----------------
-This paper was submitted to ACM MM 2019.
+This paper was accepted to ACM MM 2019.
 
 This repository implements DPNet ([Data Priming Network for Automatic Check-Out](/)) using PyTorch 1.0.1 . This implementation is heavily influenced by the project [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark).
 
@@ -35,6 +35,8 @@ python demo/rpc_demo.py --config-file configs/e2e_faster_rcnn_R_101_FPN_1x_rpc_x
 Using `toolboxes` to extract masks, train [Salient Object Detection](https://github.com/AceCoooool/DSS-pytorch)
 and render with [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix). Then modify `maskrcnn_benchmark/config/paths_catalog.py` 
 to make the paths correct.
+
+The extracted masks can be download here: [Google Drive](https://drive.google.com/drive/folders/1QqPQ0l7nDpIt8SnuUYWaYQU_8e_anHFc?usp=sharing)
 
 ## Single GPU training
 

@@ -67,6 +67,7 @@ def inference(
         expected_results=(),
         expected_results_sigma_tol=4,
         output_folder=None,
+        **kwargs
 ):
     # convert to a torch.device for efficiency
     device = torch.device(device)
@@ -109,6 +110,7 @@ def inference(
         expected_results=expected_results,
         expected_results_sigma_tol=expected_results_sigma_tol,
         generate_pseudo_labels=generate_pseudo_labels,
+        **kwargs,
     )
 
     return evaluate(dataset=dataset,

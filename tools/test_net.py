@@ -18,7 +18,7 @@ from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
 
-def do_test(cfg, model, distributed):
+def do_test(cfg, model, distributed, **kwargs):
     if isinstance(model, torch.nn.parallel.DistributedDataParallel):
         model = model.module
     iou_types = ("bbox",)
@@ -34,8 +34,9 @@ def do_test(cfg, model, distributed):
             mkdir(output_folder)
             output_folders[idx] = output_folder
     data_loaders_val = make_data_loader(cfg, is_train=False, is_distributed=distributed)
+    test_results = []
     for output_folder, dataset_name, data_loader_val in zip(output_folders, dataset_names, data_loaders_val):
-        inference(
+        result = inference(
             model,
             data_loader_val,
             dataset_name=dataset_name,
@@ -46,8 +47,11 @@ def do_test(cfg, model, distributed):
             expected_results=cfg.TEST.EXPECTED_RESULTS,
             expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,
             output_folder=output_folder,
+            **kwargs
         )
+        test_results.append(result)
         synchronize()
+    return test_results
 
 
 def main():
@@ -59,6 +63,9 @@ def main():
         help="path to config file",
     )
     parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--benchmark",
+                        help='enable `torch.backends.cudnn.benchmark`',
+                        action="store_true")
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
@@ -72,6 +79,7 @@ def main():
     distributed = num_gpus > 1
 
     if distributed:
+        torch.backends.cudnn.benchmark = args.benchmark
         torch.cuda.set_device(args.local_rank)
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"

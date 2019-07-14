@@ -1,19 +1,19 @@
-import scipy
-
-import cv2
-import glob
 import json
 import os
-import random
-from PIL import Image
 from collections import defaultdict
 
+import cv2
 import numpy as np
 import torch
 import torch.utils.data
+from PIL import Image
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.segmentation_mask import DensityMap
+from maskrcnn_benchmark.utils.gaussian import gaussian_filter_density
+
+DENSITY_MAP_WIDTH = 100
+DENSITY_MAP_HEIGHT = 100
 
 
 # --------------------------------------------
@@ -120,13 +120,13 @@ class RPCDataset(torch.utils.data.Dataset):
         if self.density_maps_dir:
             density_map = np.load(os.path.join(self.density_maps_dir, image_name + '.npy'))
             assert density_map.shape[0] == 200 and density_map.shape[1] == 200
-            # scale to 100 * 100
-            resize_scale = 2
+            # scale to DENSITY_MAP_HEIGHT * DENSITY_MAP_WIDTH
+            resize_scale = (density_map.shape[0] // DENSITY_MAP_HEIGHT, density_map.shape[1] // DENSITY_MAP_WIDTH)
             resize_density_map = cv2.resize(density_map,
-                                            dsize=(density_map.shape[1] // resize_scale, density_map.shape[0] // resize_scale),
-                                            interpolation=cv2.INTER_CUBIC) * (resize_scale ** 2)
+                                            dsize=(density_map.shape[1] // resize_scale[1], density_map.shape[0] // resize_scale[0]),
+                                            interpolation=cv2.INTER_CUBIC) * (resize_scale[0] * resize_scale[1])
 
-            assert resize_density_map.shape[0] == 100 and resize_density_map.shape[1] == 100
+            assert resize_density_map.shape[0] == DENSITY_MAP_HEIGHT and resize_density_map.shape[1] == DENSITY_MAP_WIDTH
 
             target.add_field('density_map', DensityMap(resize_density_map))
 
@@ -140,13 +140,15 @@ class RPCDataset(torch.utils.data.Dataset):
         return len(self.annotations)
 
     def get_img_info(self, index):
+        # our background image is 1815*1815
         return {"height": 1815, "width": 1815}
 
 
 class RPCPseudoDataset(torch.utils.data.Dataset):
 
-    def __init__(self, data_dir=None, filename='pseudo_labeling.json', density=False, images_dir='test2019', annotations=None, transforms=None):
-        self.root = data_dir
+    def __init__(self, images_dir, ann_file=None, density=False, annotations=None, transforms=None):
+        self.images_dir = images_dir
+        self.ann_file = ann_file
         self.transforms = transforms
         self.images_dir = images_dir
         self.density = density
@@ -154,39 +156,15 @@ class RPCPseudoDataset(torch.utils.data.Dataset):
         if annotations is not None:
             self.annotations = annotations
         else:
-            self.annopath = os.path.join(self.root, filename)
-            with open(self.annopath) as fid:
+            with open(self.ann_file) as fid:
                 annotations = json.load(fid)
             self.annotations = annotations
 
         print('Valid annotations: {}'.format(len(self.annotations)))
 
-    def gaussian_filter_density(self, gt):
-        density = np.zeros(gt.shape, dtype=np.float32)
-        gt_count = np.count_nonzero(gt)
-        if gt_count == 0:
-            return density
-        pts = np.array(list(zip(np.nonzero(gt)[1], np.nonzero(gt)[0])))  # (x,y)
-        leaf_size = 2048
-        # build kd tree
-        tree = scipy.spatial.KDTree(pts.copy(), leafsize=leaf_size)
-        # query kd tree
-        distances, locations = tree.query(pts, k=4)
-
-        for i, pt in enumerate(pts):
-            pt2d = np.zeros(gt.shape, dtype=np.float32)
-            pt2d[pt[1], pt[0]] = 1.
-            if gt_count > 1:
-                sigma = (distances[i][1] + distances[i][2] + distances[i][3]) * 0.085
-                sigma = min(sigma, 999)  # avoid inf
-            else:
-                raise NotImplementedError('should not be here!!')
-            density += scipy.ndimage.filters.gaussian_filter(pt2d, sigma, mode='constant')
-        return density
-
     def __getitem__(self, index):
         ann = self.annotations[index]
-        img_path = os.path.join('/data7/lufficc/rpc/test2019', ann['file_name'])
+        img_path = os.path.join(self.images_dir, ann['file_name'])
         img = Image.open(img_path).convert("RGB")
         width, height = img.size[0], img.size[1]
         boxes = []
@@ -198,16 +176,16 @@ class RPCPseudoDataset(torch.utils.data.Dataset):
         target = BoxList(torch.tensor(boxes, dtype=torch.float32), (width, height), mode="xyxy")
         target.add_field('labels', torch.tensor(labels))
         target = target.clip_to_image(remove_empty=True)
-        scale_w = 100.0 / img.width
-        scale_h = 100.0 / img.height
+        scale_w = DENSITY_MAP_WIDTH / img.width
+        scale_h = DENSITY_MAP_HEIGHT / img.height
         if self.density:
-            gt = np.zeros((100, 100))
+            gt = np.zeros((DENSITY_MAP_HEIGHT, DENSITY_MAP_WIDTH))
             for category, x, y, w, h in ann['bbox']:
                 cx = x + w / 2
                 cy = y + h / 2
                 gt[round(cy * scale_h), round(cx * scale_w)] = 1
-            density = self.gaussian_filter_density(gt)
-            assert density.shape[0] == 100 and density.shape[1] == 100
+            density = gaussian_filter_density(gt)
+            assert density.shape[0] == DENSITY_MAP_HEIGHT and density.shape[1] == DENSITY_MAP_WIDTH
             target.add_field('density_map', DensityMap(density))
 
         if self.transforms is not None:

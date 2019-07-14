@@ -1,6 +1,8 @@
 import logging
 import tempfile
 import os
+from datetime import datetime
+
 import torch
 from collections import OrderedDict
 from tqdm import tqdm
@@ -35,8 +37,12 @@ def do_coco_evaluation(
         logger.info(res)
         check_expected_results(res, expected_results, expected_results_sigma_tol)
         if output_folder:
+            path = os.path.join(output_folder, "box_proposals_result_{}.txt".format(datetime.now().strftime('%Y-%m-%d_%H-%M-%S')))
+            with open(path, "w") as f:
+                f.write(str(res))
             torch.save(res, os.path.join(output_folder, "box_proposals.pth"))
-        return
+        eval_result = dict(metrics=res.results)
+        return eval_result
     logger.info("Preparing results for COCO format")
     coco_results = {}
     if "bbox" in iou_types:
@@ -63,8 +69,13 @@ def do_coco_evaluation(
     logger.info(results)
     check_expected_results(results, expected_results, expected_results_sigma_tol)
     if output_folder:
+        path = os.path.join(output_folder, "coco_result_{}.txt".format(datetime.now().strftime('%Y-%m-%d_%H-%M-%S')))
+        with open(path, "w") as f:
+            f.write(str(results))
         torch.save(results, os.path.join(output_folder, "coco_results.pth"))
-    return results, coco_results
+
+    eval_result = dict(metrics=results.results)
+    return eval_result
 
 
 def prepare_for_coco_detection(predictions, dataset):
@@ -364,8 +375,14 @@ class COCOResults(object):
             res[metric] = s[idx]
 
     def __repr__(self):
-        # TODO make it pretty
-        return repr(self.results)
+        result_str = ''
+        for iou_type in self.results:
+            result_str += (iou_type + ':\n')
+            metrics = self.results[iou_type]
+            for metric in metrics:
+                result_str += '{:<10}: {}\n'.format(metric, round(metrics[metric], 3))
+            result_str += ('-' * 32 + '\n')
+        return result_str
 
 
 def check_expected_results(results, expected_results, sigma_tol):

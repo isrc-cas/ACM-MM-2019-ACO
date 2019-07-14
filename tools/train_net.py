@@ -127,6 +127,9 @@ def main():
         help="Do not test the final model",
         action="store_true",
     )
+    parser.add_argument("--benchmark",
+                        help='enable `torch.backends.cudnn.benchmark`',
+                        action="store_true")
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
@@ -140,6 +143,7 @@ def main():
     args.distributed = num_gpus > 1
 
     if args.distributed:
+        torch.backends.cudnn.benchmark = args.benchmark
         torch.cuda.set_device(args.local_rank)
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
