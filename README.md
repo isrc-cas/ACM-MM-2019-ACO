@@ -95,7 +95,13 @@ python -m torch.distributed.launch --nproc_per_node=$NGPUS tools/train_net.py --
 | averaged | Syn+Render (DPNet) | 80.51% | 97.33% | 0.34 | 0.03 | 97.91% | 77.04% |
 
 ## Citations
-Please consider citing this project in your publications if it helps your research. The following is a BibTeX reference. The BibTeX entry requires the `url` LaTeX package.
+Please cite this project in your publications if it helps your research. The following is a BibTeX reference. The BibTeX entry requires the `url` LaTeX package.
 ```
-TODO
+@inproceedings{li2019data,
+  title={Data Priming Network for Automatic Check-Out},
+  author={Li, Congcong and Du, Dawei and Zhang, Libo and Luo, Tiejian and Wu, Yanjun and Tian, Qi and Wen, Longyin and Lyu, Siwei},
+  booktitle={2019 ACM Multimedia Conference on Multimedia Conference},
+  year={2019},
+  organization={ACM}
+}
 ```
